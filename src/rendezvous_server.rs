@@ -58,7 +58,7 @@ type Receiver = mpsc::UnboundedReceiver<Data>;
 static mut ROTATION_RELAY_SERVER: usize = 0;
 type RelayServers = Vec<String>;
 static CHECK_RELAY_TIMEOUT: u64 = 3_000;
-static mut ALWAYS_USE_RELAY: bool = false;
+static mut ALWAYS_USE_RELAY: bool = true;
 
 #[derive(Clone)]
 struct Inner {
