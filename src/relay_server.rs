@@ -1,5 +1,6 @@
 use async_speed_limit::Limiter;
 use async_trait::async_trait;
+use std::time::{SystemTime, UNIX_EPOCH};
 use hbb_common::{
     allow_err, bail,
     bytes::{Bytes, BytesMut},
@@ -19,6 +20,7 @@ use hbb_common::{
     },
     ResultType,
 };
+use crate::rabbit;
 use sodiumoxide::crypto::sign;
 use std::{
     collections::{HashMap, HashSet},
@@ -27,11 +29,13 @@ use std::{
     net::SocketAddr,
     sync::atomic::{AtomicUsize, Ordering},
 };
+use crate::rabbit::RemoteDTO;
 
 type Usage = (usize, usize, usize, usize);
 
 lazy_static::lazy_static! {
     static ref PEERS: Mutex<HashMap<String, Box<dyn StreamTrait>>> = Default::default();
+    static ref IDS: Mutex<HashMap<String, Box<String>>> = Default::default();
     static ref USAGE: RwLock<HashMap<String, Usage>> = Default::default();
     static ref BLACKLIST: RwLock<HashSet<String>> = Default::default();
     static ref BLOCKLIST: RwLock<HashSet<String>> = Default::default();
@@ -44,6 +48,7 @@ static TOTAL_BANDWIDTH: AtomicUsize = AtomicUsize::new(1024 * 1024 * 1024); // i
 static SINGLE_BANDWIDTH: AtomicUsize = AtomicUsize::new(128 * 1024 * 1024); // in bit/s
 const BLACKLIST_FILE: &str = "blacklist.txt";
 const BLOCKLIST_FILE: &str = "blocklist.txt";
+
 
 #[tokio::main(flavor = "multi_thread")]
 pub async fn start(port: &str, key: &str) -> ResultType<()> {
@@ -424,6 +429,7 @@ async fn make_pair(
 
 async fn make_pair_(stream: impl StreamTrait, addr: SocketAddr, key: &str, limiter: Limiter) {
     let mut stream = stream;
+
     if let Ok(Some(Ok(bytes))) = timeout(30_000, stream.recv()).await {
         if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
             if let Some(rendezvous_message::Union::RequestRelay(rf)) = msg_in.union {
@@ -432,6 +438,10 @@ async fn make_pair_(stream: impl StreamTrait, addr: SocketAddr, key: &str, limit
                 }
                 if !rf.uuid.is_empty() {
                     let mut peer = PEERS.lock().await.remove(&rf.uuid);
+                    let mut client_id = rf.id.clone();
+                    if client_id.is_empty() {
+                        client_id = IDS.lock().await.remove(&rf.uuid).unwrap_or(Box::new(client_id)).to_string();
+                    }
                     if let Some(peer) = peer.as_mut() {
                         log::info!("Relayrequest {} from {} got paired", rf.uuid, addr);
                         let id = format!("{}:{}", addr.ip(), addr.port());
@@ -441,18 +451,22 @@ async fn make_pair_(stream: impl StreamTrait, addr: SocketAddr, key: &str, limit
                             stream.set_raw();
                             log::info!("Both are raw");
                         }
+
                         if let Err(err) = relay(addr, &mut stream, peer, limiter, id.clone()).await
                         {
                             log::info!("Relay of {} closed: {}", addr, err);
                         } else {
-                            log::info!("Relay of {} closed", addr);
+                            rabbit::send(RemoteDTO::new(rf.uuid.clone(), client_id.clone(), std::time::SystemTime::now().duration_since(UNIX_EPOCH).expect("error").as_millis())).await;
+                            log::info!("Relay of {} closed {} {} {}", addr, rf.id, client_id, rf.uuid);
                         }
                         USAGE.write().await.remove(&id);
                     } else {
                         log::info!("New relay request {} from {}", rf.uuid, addr);
                         PEERS.lock().await.insert(rf.uuid.clone(), Box::new(stream));
+                        IDS.lock().await.insert(rf.uuid.clone(), Box::new(rf.id.clone()));
                         sleep(30.).await;
                         PEERS.lock().await.remove(&rf.uuid);
+                        IDS.lock().await.remove(&rf.uuid);
                     }
                 }
             }
