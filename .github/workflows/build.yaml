@@ -1,5 +1,12 @@
 name: build
 
+# ------------- NOTE
+# please setup some secrets before running this workflow:
+# DOCKER_IMAGE should be the target image name on docker hub (e.g. "rustdesk/rustdesk-server-s6" )
+# DOCKER_IMAGE_CLASSIC should be the target image name on docker hub for the old build (e.g. "rustdesk/rustdesk-server" )
+# DOCKER_USERNAME is the username you normally use to login at https://hub.docker.com/
+# DOCKER_PASSWORD is a token you should create under "account settings / security" with read/write access
+
 on:
   workflow_dispatch:
   push:
@@ -14,22 +21,75 @@ env:
   LATEST_TAG: latest
 
 jobs:
-  docker:
-    name: Docker push - ${{ matrix.job.name }}
-    runs-on: ubuntu-22.04
+
+  # binary build
+  build:
+
+    name: Build - ${{ matrix.job.name }}
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - { name: "amd64",   target: "x86_64-unknown-linux-musl" }
+          - { name: "arm64v8", target: "aarch64-unknown-linux-musl" }
+          - { name: "armv7",   target: "armv7-unknown-linux-musleabihf" }
+          - { name: "i386",    target: "i686-unknown-linux-musl" }
+          - { name: "amd64fb",    target: "x86_64-unknown-freebsd" }
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Docker meta
-        id: docker_meta
-        uses: crazy-max/ghaction-docker-meta@v1
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
         with:
-          images: ${{ secrets.DOCKER_IMAGE }}
-          tag-semver: |
-            ${{ version }}
-            ${{ major }}.${{ minor }}
+          toolchain: "1.70.0"
+          override: true
+          default: true
+          components: rustfmt
+          profile: minimal
+          target: ${{ matrix.job.target }}
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-features --target=${{ matrix.job.target }}
+          use-cross: true
+
+      - name: Exec chmod
+        run: chmod -v a+x target/${{ matrix.job.target }}/release/*
+
+      - name: Publish Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: binaries-linux-${{ matrix.job.name }}
+          path: |
+            target/${{ matrix.job.target }}/release/hbbr
+            target/${{ matrix.job.target }}/release/hbbs
+            target/${{ matrix.job.target }}/release/rustdesk-utils
+          if-no-files-found: error
+
+  docker:
+    name: Docker push - ${{ matrix.job.name }}
+    needs: build
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - { name: "amd64",   docker_platform: "linux/amd64",  s6_platform: "x86_64" }
+          - { name: "arm64v8", docker_platform: "linux/arm64",  s6_platform: "aarch64" }
+          - { name: "armv7",   docker_platform: "linux/arm/v7", s6_platform: "armhf" }
+          - { name: "i386",    docker_platform: "linux/386",    s6_platform: "i686" }
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -41,18 +101,29 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: registry.hub.docker.com/${{ secrets.DOCKER_IMAGE }}
+
       - name: Get git tag
         id: vars
         run: |
           T=${GITHUB_REF#refs/*/}
           M=${T%%.*}
           echo "GIT_TAG=$T" >> $GITHUB_ENV
-
+          echo "MAJOR_TAG=$M" >> $GITHUB_ENV
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
         with:
           context: "./"
-          platforms: linux/amd64
+          platforms: ${{ matrix.job.docker_platform }}
           push: true
-          tags: ${{ secrets.DOCKER_IMAGE }}:${{ env.GIT_TAG }}-${{ matrix.job.name }}
+          build-args: |
+            S6_ARCH=${{ matrix.job.s6_platform }}
+          tags: |
+            ${{ secrets.DOCKER_IMAGE }}:${{ env.LATEST_TAG }}-${{ matrix.job.name }}
+            ${{ secrets.DOCKER_IMAGE }}:${{ env.GIT_TAG }}-${{ matrix.job.name }}
+            ${{ secrets.DOCKER_IMAGE }}:${{ env.MAJOR_TAG }}-${{ matrix.job.name }}
           labels: ${{ steps.meta.outputs.labels }}
