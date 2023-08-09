@@ -2,7 +2,7 @@ FROM rust:latest as builder
 
 WORKDIR /usr/src/rustdesk-server
 
-COPY . .
+COPY .. .
 
 RUN cargo build --release
 
