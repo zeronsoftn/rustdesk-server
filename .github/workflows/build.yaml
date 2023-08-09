@@ -107,5 +107,5 @@ jobs:
           build-args: |
             S6_ARCH=${{ matrix.job.s6_platform }}
           tags: |
-            ${{ secrets.DOCKER_IMAGE }}:${{ env.GIT_TAG }}-${{ matrix.job.name }}
+            ${{ secrets.DOCKER_IMAGE }}:${{ env.GIT_TAG }}
           labels: ${{ steps.meta.outputs.labels }}
