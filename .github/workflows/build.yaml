@@ -21,10 +21,7 @@ env:
   LATEST_TAG: latest
 
 jobs:
-
-  # binary build
   build:
-
     name: Build - ${{ matrix.job.name }}
     runs-on: ubuntu-20.04
     strategy:
@@ -32,10 +29,6 @@ jobs:
       matrix:
         job:
           - { name: "amd64",   target: "x86_64-unknown-linux-musl" }
-          - { name: "arm64v8", target: "aarch64-unknown-linux-musl" }
-          - { name: "armv7",   target: "armv7-unknown-linux-musleabihf" }
-          - { name: "i386",    target: "i686-unknown-linux-musl" }
-          - { name: "amd64fb",    target: "x86_64-unknown-freebsd" }
 
     steps:
       - name: Checkout
@@ -74,17 +67,8 @@ jobs:
     name: Docker push - ${{ matrix.job.name }}
     needs: build
     runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        job:
-          - { name: "amd64",   docker_platform: "linux/amd64",  s6_platform: "x86_64" }
-          - { name: "arm64v8", docker_platform: "linux/arm64",  s6_platform: "aarch64" }
-          - { name: "armv7",   docker_platform: "linux/arm/v7", s6_platform: "armhf" }
-          - { name: "i386",    docker_platform: "linux/386",    s6_platform: "i686" }
 
     steps:
-
       - name: Checkout
         uses: actions/checkout@v3
 
@@ -123,7 +107,5 @@ jobs:
           build-args: |
             S6_ARCH=${{ matrix.job.s6_platform }}
           tags: |
-            ${{ secrets.DOCKER_IMAGE }}:${{ env.LATEST_TAG }}-${{ matrix.job.name }}
             ${{ secrets.DOCKER_IMAGE }}:${{ env.GIT_TAG }}-${{ matrix.job.name }}
-            ${{ secrets.DOCKER_IMAGE }}:${{ env.MAJOR_TAG }}-${{ matrix.job.name }}
           labels: ${{ steps.meta.outputs.labels }}
