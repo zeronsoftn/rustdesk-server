@@ -39,7 +39,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v2
         with:
-          registry: https://zm-private-docker.zeronsoftn.com/
+          registry: ${{secrets.DOCKER_REGISTRY_URL}}
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
@@ -47,7 +47,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: https://zm-private-docker.zeronsoftn.com/rustdesk-server
+          images: ${{ secrets.DOCKER_REGISTRY_URL}}/${{ secrets.DOCKER_IMAGE }}
 
       - name: Get git tag
         id: vars
@@ -59,7 +59,7 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          docker build -t https://zm-private-docker.zeronsoftn.com/rustdesk-server:${{ env.GIT_TAG }} ./
-          docker push https://zm-private-docker.zeronsoftn.com/rustdesk-server:${{ env.GIT_TAG }}
+          docker build -t ${{ secrets.DOCKER_IMAGE }}:${{ env.GIT_TAG }} ./
+          docker push ${{ secrets.DOCKER_REGISTRY_URL }}/zeroback/${{ secrets.DOCKER_IMAGE }}:${{ env.GIT_TAG }}
         env:
           DOCKER_BUILDKIT: 1
