@@ -99,7 +99,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ secrets.DOCKER_REGISTRY_URL}/${{ secrets.DOCKER_IMAGE }}
+          images: ${{ secrets.DOCKER_REGISTRY_URL}}/${{ secrets.DOCKER_IMAGE }}
 
       - name: Get git tag
         id: vars
