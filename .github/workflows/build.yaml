@@ -58,13 +58,8 @@ jobs:
           echo "MAJOR_TAG=$M" >> $GITHUB_ENV
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v3
-        with:
-          context: "./"
-          platforms: ${{ matrix.job.docker_platform }}
-          push: true
-          build-args: |
-            S6_ARCH=${{ matrix.job.s6_platform }}
-          tags: |
-            ${{ secrets.DOCKER_IMAGE }}:${{ env.GIT_TAG }}
-          labels: ${{ steps.meta.outputs.labels }}
+        run: |
+          docker build -t ${{ secrets.DOCKER_REGISTRY_URL }}/${{ secrets.DOCKER_IMAGE }}:${{ env.GIT_TAG }} ./
+          docker push ${{ secrets.DOCKER_REGISTRY_URL }}/${{ secrets.DOCKER_IMAGE }}:${{ env.GIT_TAG }}
+        env:
+          DOCKER_BUILDKIT: 1
