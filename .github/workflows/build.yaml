@@ -92,7 +92,9 @@ jobs:
       - name: Log in to Docker Registry
         if: github.event_name != 'pull_request'
         run: |
-          echo ${{ secrets.DOCKER_REGISTRY_PASSWORD }} | docker login -u ${{ secrets.DOCKER_REGISTRY_USERNAME }} --password-stdin ${{ secrets.DOCKER_REGISTRY_URL }}
+          DOCKER_USERNAME="${{ secrets.DOCKER_REGISTRY_USERNAME }}"
+          DOCKER_PASSWORD="${{ secrets.DOCKER_REGISTRY_PASSWORD }}"
+          docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD" ${DOCKER_REGISTRY_URL}
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
