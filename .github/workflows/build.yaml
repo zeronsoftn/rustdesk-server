@@ -60,6 +60,7 @@ jobs:
       - name: Build and push Docker image
         run: |
           docker build -t ${{ secrets.DOCKER_IMAGE }}:${{ env.GIT_TAG }} ./
+          docker tag  ${{ secrets.DOCKER_IMAGE }}:${{ env.GIT_TAG }} ${{secrets.DOCKER_REGISTRY_URL}}/${{ secrets.DOCKER_IMAGE }}:${{ env.GIT_TAG }}
           docker push ${{ secrets.DOCKER_REGISTRY_URL }}/zeroback/${{ secrets.DOCKER_IMAGE }}:${{ env.GIT_TAG }}
         env:
           DOCKER_BUILDKIT: 1
