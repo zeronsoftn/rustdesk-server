@@ -1,26 +1,69 @@
-use std::time::Duration;
 use lapin::{options::*, BasicProperties, Connection, ConnectionProperties, Channel};
 use lapin::types::ReplyCode;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RemoteDTO {
-    uuid: String,
+    msg: MsgType,
+    msg_type: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+enum MsgType {
+    Close(RemoteCloseDTO),
+    Connect(RemoteConnectDTO),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RemoteCloseDTO {
+    connection_id: String,
+    closed_at: u64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RemoteConnectDTO {
+    connection_id: String,
     client_id: String,
-    closed_at: u128,
+    public_key: String,
+    connected_at: u64,
+    ip: String,
+    port: String,
 }
 
 impl RemoteDTO {
-    pub fn new(uuid: String, client_id: String, closed_at: u128) -> Self {
-        RemoteDTO { uuid, client_id, closed_at }
+    pub fn new_close(dto: RemoteCloseDTO) -> Self {
+        RemoteDTO {
+            msg: MsgType::Close(dto),
+            msg_type: "close".to_string(), // Set the appropriate message type string
+        }
+    }
+
+    pub fn new_connect(dto: RemoteConnectDTO) -> Self {
+        RemoteDTO {
+            msg: MsgType::Connect(dto),
+            msg_type: "connect".to_string(), // Set the appropriate message type string
+        }
+    }
+}
+
+
+impl RemoteCloseDTO {
+    pub fn new(connection_id: String, closed_at: u64) -> Self {
+        RemoteCloseDTO { connection_id, closed_at }
+    }
+}
+
+impl RemoteConnectDTO {
+    pub fn new(connection_id: String, client_id: String, public_key: String, connected_at: u64, ip: String, port: String) -> Self {
+        RemoteConnectDTO { connection_id, client_id, public_key, connected_at, ip, port }
     }
 }
 
 pub async fn send(dto: RemoteDTO) {
+
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "info");
     }
-
     let v = serde_json::to_value(&dto).unwrap();
 
     let addr = std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "amqp://127.0.0.1:5672/%2f".into());
