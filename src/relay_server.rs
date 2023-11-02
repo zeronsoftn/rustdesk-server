@@ -29,7 +29,7 @@ use std::{
     net::SocketAddr,
     sync::atomic::{AtomicUsize, Ordering},
 };
-use crate::rabbit::{RemoteCloseDTO, RemoteConnectDTO, RemoteDTO};
+use crate::rabbit::{RemoteCloseDTO, RemoteConnectDTO};
 
 type Usage = (usize, usize, usize, usize);
 
@@ -444,15 +444,13 @@ async fn make_pair_(stream: impl StreamTrait, addr: SocketAddr, key: &str, limit
                     }
                     if let Some(peer) = peer.as_mut() {
                         log::info!("Relayrequest {} from {} got paired", rf.uuid, addr);
-                        rabbit::send(
-                            RemoteDTO::new_connect(
-                                RemoteConnectDTO::new(rf.uuid.clone(),
-                                                      client_id.clone(),
-                                                      rf.licence_key.clone(),
-                                                      SystemTime::now().duration_since(UNIX_EPOCH).expect("error").as_millis() as u64,
-                                                      addr.ip().to_string().clone(),
-                                                      addr.port().to_string().clone(),
-                                )
+                        rabbit::send_connect(
+                            RemoteConnectDTO::new(rf.uuid.clone(),
+                                                  client_id.clone(),
+                                                  rf.licence_key.clone(),
+                                                  SystemTime::now().duration_since(UNIX_EPOCH).expect("error").as_millis() as u64,
+                                                  addr.ip().to_string().clone(),
+                                                  addr.port().to_string().clone(),
                             )
                         ).await;
 
@@ -470,11 +468,9 @@ async fn make_pair_(stream: impl StreamTrait, addr: SocketAddr, key: &str, limit
                         {
                             log::info!("Relay of {} closed: {}", addr, err);
                         } else {
-                            rabbit::send(
-                                RemoteDTO::new_close(
-                                    RemoteCloseDTO::new(rf.uuid.clone(),
-                                                        SystemTime::now().duration_since(UNIX_EPOCH).expect("error").as_millis() as u64,
-                                    )
+                            rabbit::send_close(
+                                RemoteCloseDTO::new(rf.uuid.clone(),
+                                                    SystemTime::now().duration_since(UNIX_EPOCH).expect("error").as_millis() as u64,
                                 )
                             ).await;
                             log::info!("Relay of {} closed {} {} {}", addr, rf.id, client_id, rf.uuid);
