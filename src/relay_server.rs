@@ -1,25 +1,13 @@
 use async_speed_limit::Limiter;
 use async_trait::async_trait;
 use std::time::{SystemTime, UNIX_EPOCH};
-use hbb_common::{
-    allow_err, bail,
-    bytes::{Bytes, BytesMut},
-    futures_util::{sink::SinkExt, stream::StreamExt},
-    log,
-    protobuf::Message as _,
-    rendezvous_proto::*,
-    sleep,
-    tcp::{listen_any, FramedStream},
-    timeout,
-    tokio::{
-        self,
-        io::{AsyncReadExt, AsyncWriteExt},
-        net::{TcpListener, TcpStream},
-        sync::{Mutex, RwLock},
-        time::{interval, Duration},
-    },
-    ResultType,
-};
+use hbb_common::{allow_err, bail, bytes::{Bytes, BytesMut}, futures_util::{sink::SinkExt, stream::StreamExt}, log, protobuf::Message as _, rendezvous_proto::*, sleep, tcp::{listen_any, FramedStream}, timeout, tokio::{
+    self,
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::{TcpListener, TcpStream},
+    sync::{Mutex, RwLock},
+    time::{interval, Duration},
+}, ResultType};
 use crate::rabbit;
 use sodiumoxide::crypto::sign;
 use std::{
@@ -447,7 +435,7 @@ async fn make_pair_(stream: impl StreamTrait, addr: SocketAddr, key: &str, limit
                         client_id = IDS.lock().await.remove(&rf.uuid).unwrap_or(Box::new(client_id)).to_string();
                     }
                     if let Some(peer) = peer.as_mut() {
-                        log::info!("Relayrequest {} from {} got paired", rf.uuid, addr);
+                        log::info!("HELLO {} {}  {}", addr, client_id.clone(), rf.uuid);
                         rabbit::send_connect(
                             RemoteConnectDTO::new(rf.uuid.clone(),
                                                   client_id.clone(),
@@ -459,7 +447,6 @@ async fn make_pair_(stream: impl StreamTrait, addr: SocketAddr, key: &str, limit
                         ).await;
 
 
-                        log::info!("HELLO {} {} {} {}", addr, rf.id, client_id, rf.uuid);
                         let id = format!("{}:{}", addr.ip(), addr.port());
                         USAGE.write().await.insert(id.clone(), Default::default());
                         if !stream.is_ws() && !peer.is_ws() {

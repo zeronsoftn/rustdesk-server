@@ -142,6 +142,9 @@ impl RendezvousServer {
         let mut listener2 = create_tcp_listener(nat_port).await?;
         let mut listener3 = create_tcp_listener(ws_port).await?;
         let test_addr = std::env::var("TEST_HBBS").unwrap_or_default();
+        unsafe {
+            ALWAYS_USE_RELAY = true;
+        }
         if std::env::var("ALWAYS_USE_RELAY")
             .unwrap_or_default()
             .to_uppercase()
@@ -1029,7 +1032,7 @@ impl RendezvousServer {
                     if rs.to_uppercase() == "Y" {
                         unsafe { ALWAYS_USE_RELAY = true };
                     } else {
-                        unsafe { ALWAYS_USE_RELAY = false };
+                        unsafe { ALWAYS_USE_RELAY = true };
                     }
                     self.tx.send(Data::RelayServers0(rs.to_owned())).ok();
                 } else {

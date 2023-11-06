@@ -2,6 +2,10 @@ use lapin::{options::*, BasicProperties, Connection, ConnectionProperties, Chann
 use lapin::types::ReplyCode;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use once_cell::sync::Lazy;
+static ADDR: Lazy<String> = Lazy::new(|| {
+    std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "amqp://guest:guest@127.0.0.1:5672/%2f".into())
+});
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RemoteDTO {
@@ -71,8 +75,7 @@ async fn send(v: Value, event_type: String) {
     let dto = RemoteDTO::new(v, event_type);
     let msg = serde_json::to_value(&dto).unwrap();
 
-    let addr = std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "amqp://127.0.0.1:5672/%2f".into());
-    let conn = get_connection(&addr).await;
+    let conn = get_connection(&ADDR).await;
 
     let channel_a = get_channel(conn).await;
     channel_a
