@@ -3,8 +3,13 @@ use lapin::types::ReplyCode;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use once_cell::sync::Lazy;
+
 static ADDR: Lazy<String> = Lazy::new(|| {
-    std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "amqp://guest:guest@127.0.0.1:5672/%2f".into())
+    let host = std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "127.0.0.1".into());
+    let port = std::env::var("RABBITMQ_PORT").unwrap_or_else(|_| "5672".into());
+    let user = std::env::var("RABBITMQ_USERNAME").unwrap_or_else(|_| "guest".into());
+    let password = std::env::var("RABBITMQ_PASSWORD").unwrap_or_else(|_| "guest".into());
+    format!("amqp://{}:{}@{}:{}", user, password, host, port)
 });
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -91,6 +96,8 @@ async fn send(v: Value, event_type: String) {
 }
 
 async fn get_connection(addr: &str) -> Connection {
+    println!("Connecting to: {}", addr);
+
     return Connection::connect(
         addr,
         ConnectionProperties::default(),
