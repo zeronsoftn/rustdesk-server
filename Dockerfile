@@ -8,7 +8,7 @@ RUN cargo build --release
 
 FROM debian:stable-slim
 
-WORKDIR /usr/src/rustdesk-server
+WORKDIR /root
 
 COPY --from=builder /usr/src/rustdesk-server/target/release/hbbr .
 COPY --from=builder /usr/src/rustdesk-server/target/release/hbbs .
