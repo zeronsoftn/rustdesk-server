@@ -23,10 +23,10 @@ use crate::{
     },
 };
 
-pub const RENDEZVOUS_TIMEOUT: u64 = 12_000;
-pub const CONNECT_TIMEOUT: u64 = 18_000;
-pub const READ_TIMEOUT: u64 = 30_000;
-pub const REG_INTERVAL: i64 = 12_000;
+pub const RENDEZVOUS_TIMEOUT: u64 = 10_000;
+pub const CONNECT_TIMEOUT: u64 = 10_000;
+pub const READ_TIMEOUT: u64 = 15_000;
+pub const REG_INTERVAL: i64 = 10_000;
 pub const COMPRESS_LEVEL: i32 = 3;
 const SERIAL: i32 = 3;
 const PASSWORD_ENC_VERSION: &str = "00";
