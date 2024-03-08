@@ -683,7 +683,7 @@ impl RendezvousServer {
         ws: bool,
     ) -> ResultType<(RendezvousMessage, Option<SocketAddr>)> {
         let mut ph = ph;
-        if !key.is_empty() && ph.licence_key != key {
+        if key.is_empty() || ph.licence_key != key {
             let mut msg_out = RendezvousMessage::new();
             msg_out.set_punch_hole_response(PunchHoleResponse {
                 failure: punch_hole_response::Failure::LICENSE_MISMATCH.into(),
@@ -1183,7 +1183,7 @@ impl RendezvousServer {
         if key.is_empty() || key == "-" || key == "_" {
             let (pk, sk) = crate::common::gen_sk(300);
             out_sk = sk;
-            if !key.is_empty() {
+            if key.is_empty() {
                 key = pk;
             } else {
                 std::env::set_var("KEY_FOR_API", pk);
