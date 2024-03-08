@@ -1181,7 +1181,7 @@ impl RendezvousServer {
         }
 
         if key.is_empty() || key == "-" || key == "_" {
-            let (pk, sk) = crate::common::gen_sk(0);
+            let (pk, sk) = crate::common::gen_sk(300);
             out_sk = sk;
             if !key.is_empty() {
                 key = pk;
