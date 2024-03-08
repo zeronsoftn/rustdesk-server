@@ -10,5 +10,5 @@ FROM debian:stable-slim
 
 WORKDIR /root
 
-COPY --from=builder /usr/src/rustdesk-server/target/release/hbbr .
-COPY --from=builder /usr/src/rustdesk-server/target/release/hbbs .
+COPY --from=builder /usr/src/rustdesk-server/target/release/hbbr /root/hbbr
+COPY --from=builder /usr/src/rustdesk-server/target/release/hbbs /root/hbbs
