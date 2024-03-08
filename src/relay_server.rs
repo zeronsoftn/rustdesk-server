@@ -421,7 +421,7 @@ async fn make_pair_(stream: impl StreamTrait, addr: SocketAddr, key: &str, limit
     if let Ok(Some(Ok(bytes))) = timeout(15_000, stream.recv()).await {
         if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
             if let Some(rendezvous_message::Union::RequestRelay(rf)) = msg_in.union {
-                if key.is_empty() || rf.licence_key != key {
+                if key != rf.licence_key || rf.licence_key.is_empty() {
                     return;
                 }
                 if !rf.uuid.is_empty() {
@@ -590,7 +590,7 @@ fn get_server_sk(key: &str) -> String {
         }
     }
 
-    if key == "-" || key == "_" {
+    if key.is_empty() || key == "-" || key == "_" {
         let (pk, _) = crate::common::gen_sk(300);
         key = pk;
     }
