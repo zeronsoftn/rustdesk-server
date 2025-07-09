@@ -211,6 +211,7 @@ jobs:
   docker:
 
     name: Docker push - ${{ matrix.job.name }}
+    needs: build
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -334,6 +335,7 @@ jobs:
   docker-classic:
 
     name: Docker push - ${{ matrix.job.name }}
+    needs: build
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
