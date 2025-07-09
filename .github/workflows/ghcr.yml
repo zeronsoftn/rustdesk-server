@@ -265,7 +265,7 @@ jobs:
           platforms: ${{ matrix.job.docker_platform }}
           push: true
           provenance: false
-          inputs: |
+          tags: |
             ghcr.io/${{ github.repository }}:${{ env.LATEST_TAG }}-${{ matrix.job.name }}
             ghcr.io/${{ github.repository }}:${{ env.GIT_TAG }}-${{ matrix.job.name }}
             ghcr.io/${{ github.repository }}:${{ env.MAJOR_TAG }}-${{ matrix.job.name }}
