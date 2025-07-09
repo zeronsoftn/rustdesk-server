@@ -168,8 +168,7 @@ jobs:
         uses: Noelware/docker-manifest-action@master
         if: github.event_name != 'workflow_dispatch'
         with:
-          images: ghcr.io/${{ github.repository }}-s6
-          tags: ${{ env.GIT_TAG }}
+          images: ghcr.io/${{ github.repository }}-s6:${{ env.GIT_TAG }}
           inputs: |
             ghcr.io/${{ github.repository }}-s6:${{ env.GIT_TAG }}-amd64,
             ghcr.io/${{ github.repository }}-s6:${{ env.GIT_TAG }}-arm64v8,
@@ -300,8 +299,7 @@ jobs:
         uses: Noelware/docker-manifest-action@master
         if: github.event_name != 'workflow_dispatch'
         with:
-          images: ghcr.io/${{ github.repository }}
-          tags: ${{ env.GIT_TAG }}
+          images: ghcr.io/${{ github.repository }}:${{ env.GIT_TAG }}
           inputs: |
             ghcr.io/${{ github.repository }}:${{ env.GIT_TAG }}-amd64,
             ghcr.io/${{ github.repository }}:${{ env.GIT_TAG }}-arm64v8,
@@ -313,8 +311,7 @@ jobs:
       - name: Create and push manifest (:major)
         uses: Noelware/docker-manifest-action@master
         with:
-          images: ghcr.io/${{ github.repository }}
-          tags: ${{ env.MAJOR_TAG }}
+          images: ghcr.io/${{ github.repository }}:${{ env.MAJOR_TAG }}
           inputs: |
             ghcr.io/${{ github.repository }}:${{ env.MAJOR_TAG }}-amd64,
             ghcr.io/${{ github.repository }}:${{ env.MAJOR_TAG }}-arm64v8,
@@ -326,8 +323,7 @@ jobs:
       - name: Create and push manifest (:latest)
         uses: Noelware/docker-manifest-action@master
         with:
-          images: ghcr.io/${{ github.repository }}
-          tags: ${{ env.LATEST_TAG }}
+          images: ghcr.io/${{ github.repository }}:${{ env.LATEST_TAG }}
           inputs: |
             ghcr.io/${{ github.repository }}:${{ env.LATEST_TAG }}-amd64,
             ghcr.io/${{ github.repository }}:${{ env.LATEST_TAG }}-arm64v8,
