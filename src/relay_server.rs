@@ -431,7 +431,7 @@ async fn make_pair_(stream: impl StreamTrait, addr: SocketAddr, key: &str, limit
                         client_id = IDS.lock().await.remove(&rf.uuid).unwrap_or(Box::new(client_id)).to_string();
                     }
                     if let Some(peer) = peer.as_mut() {
-                        log::info!("HELLO {} {}  {}", addr, client_id.clone(), rf.uuid);
+                        log::info!("Relayrequest {} from {} got paired (client_id={})", rf.uuid, addr, client_id.clone());
                         rabbit::send_connect(
                             RemoteConnectDTO::new(rf.uuid.clone(),
                                                   client_id.clone(),
