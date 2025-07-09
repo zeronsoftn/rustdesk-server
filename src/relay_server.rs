@@ -1,15 +1,28 @@
+use crate::rabbit;
+use crate::rabbit::{RemoteCloseDTO, RemoteConnectDTO};
 use async_speed_limit::Limiter;
 use async_trait::async_trait;
-use std::time::{SystemTime, UNIX_EPOCH};
-use hbb_common::{allow_err, bail, bytes::{Bytes, BytesMut}, futures_util::{sink::SinkExt, stream::StreamExt}, log, protobuf::Message as _, rendezvous_proto::*, sleep, tcp::{listen_any, FramedStream}, timeout, tokio::{
-    self,
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::{TcpListener, TcpStream},
-    sync::{Mutex, RwLock},
-    time::{interval, Duration},
-}, ResultType};
-use crate::rabbit;
+use hbb_common::{
+    allow_err, bail,
+    bytes::{Bytes, BytesMut},
+    futures_util::{sink::SinkExt, stream::StreamExt},
+    log,
+    protobuf::Message as _,
+    rendezvous_proto::*,
+    sleep,
+    tcp::{listen_any, FramedStream},
+    timeout,
+    tokio::{
+        self,
+        io::{AsyncReadExt, AsyncWriteExt},
+        net::{TcpListener, TcpStream},
+        sync::{Mutex, RwLock},
+        time::{interval, Duration},
+    },
+    ResultType,
+};
 use sodiumoxide::crypto::sign;
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::{
     collections::{HashMap, HashSet},
     io::prelude::*,
@@ -17,7 +30,6 @@ use std::{
     net::SocketAddr,
     sync::atomic::{AtomicUsize, Ordering},
 };
-use crate::rabbit::{RemoteCloseDTO, RemoteConnectDTO};
 
 type Usage = (usize, usize, usize, usize);
 
@@ -36,7 +48,6 @@ static TOTAL_BANDWIDTH: AtomicUsize = AtomicUsize::new(1024 * 1024 * 1024); // i
 static SINGLE_BANDWIDTH: AtomicUsize = AtomicUsize::new(128 * 1024 * 1024); // in bit/s
 const BLACKLIST_FILE: &str = "blacklist.txt";
 const BLOCKLIST_FILE: &str = "blocklist.txt";
-
 
 #[tokio::main(flavor = "multi_thread")]
 pub async fn start(port: &str, key: &str) -> ResultType<()> {
@@ -428,20 +439,32 @@ async fn make_pair_(stream: impl StreamTrait, addr: SocketAddr, key: &str, limit
                     let mut peer = PEERS.lock().await.remove(&rf.uuid);
                     let mut client_id = rf.id.clone();
                     if client_id.is_empty() {
-                        client_id = IDS.lock().await.remove(&rf.uuid).unwrap_or(Box::new(client_id)).to_string();
+                        client_id = IDS
+                            .lock()
+                            .await
+                            .remove(&rf.uuid)
+                            .unwrap_or(Box::new(client_id))
+                            .to_string();
                     }
                     if let Some(peer) = peer.as_mut() {
-                        log::info!("Relayrequest {} from {} got paired (client_id={})", rf.uuid, addr, client_id.clone());
-                        rabbit::send_connect(
-                            RemoteConnectDTO::new(rf.uuid.clone(),
-                                                  client_id.clone(),
-                                                  rf.licence_key.clone(),
-                                                  SystemTime::now().duration_since(UNIX_EPOCH).expect("error").as_millis() as u64,
-                                                  addr.ip().to_string().clone(),
-                                                  addr.port().to_string().clone(),
-                            )
-                        ).await;
-
+                        log::info!(
+                            "Relayrequest {} from {} got paired (client_id={})",
+                            rf.uuid,
+                            addr,
+                            client_id.clone()
+                        );
+                        rabbit::send_connect(RemoteConnectDTO::new(
+                            rf.uuid.clone(),
+                            client_id.clone(),
+                            rf.licence_key.clone(),
+                            SystemTime::now()
+                                .duration_since(UNIX_EPOCH)
+                                .expect("error")
+                                .as_millis() as u64,
+                            addr.ip().to_string().clone(),
+                            addr.port().to_string().clone(),
+                        ))
+                        .await;
 
                         let id = format!("{}:{}", addr.ip(), addr.port());
                         USAGE.write().await.insert(id.clone(), Default::default());
@@ -455,18 +478,29 @@ async fn make_pair_(stream: impl StreamTrait, addr: SocketAddr, key: &str, limit
                         {
                             log::info!("Relay of {} closed: {}", addr, err);
                         } else {
-                            rabbit::send_close(
-                                RemoteCloseDTO::new(rf.uuid.clone(),
-                                                    SystemTime::now().duration_since(UNIX_EPOCH).expect("error").as_millis() as u64,
-                                )
-                            ).await;
-                            log::info!("Relay of {} closed {} {} {}", addr, rf.id, client_id, rf.uuid);
+                            rabbit::send_close(RemoteCloseDTO::new(
+                                rf.uuid.clone(),
+                                SystemTime::now()
+                                    .duration_since(UNIX_EPOCH)
+                                    .expect("error")
+                                    .as_millis() as u64,
+                            ))
+                            .await;
+                            log::info!(
+                                "Relay of {} closed {} {} {}",
+                                addr,
+                                rf.id,
+                                client_id,
+                                rf.uuid
+                            );
                         }
                         USAGE.write().await.remove(&id);
                     } else {
                         log::info!("New relay request {} from {}", rf.uuid, addr);
                         PEERS.lock().await.insert(rf.uuid.clone(), Box::new(stream));
-                        IDS.lock().await.insert(rf.uuid.clone(), Box::new(rf.id.clone()));
+                        IDS.lock()
+                            .await
+                            .insert(rf.uuid.clone(), Box::new(rf.id.clone()));
                         sleep(30.).await;
                         PEERS.lock().await.remove(&rf.uuid);
                         IDS.lock().await.remove(&rf.uuid);

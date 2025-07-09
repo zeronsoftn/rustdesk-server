@@ -1,8 +1,8 @@
-use lapin::{options::*, BasicProperties, Connection, ConnectionProperties, Channel};
 use lapin::types::ReplyCode;
+use lapin::{options::*, BasicProperties, Channel, Connection, ConnectionProperties};
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use once_cell::sync::Lazy;
 
 static ADDR: Lazy<String> = Lazy::new(|| {
     let host = std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "127.0.0.1".into());
@@ -17,7 +17,6 @@ pub struct RemoteDTO {
     msg: Value,
     event_type: String,
 }
-
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RemoteCloseDTO {
@@ -44,16 +43,32 @@ impl RemoteDTO {
     }
 }
 
-
 impl RemoteCloseDTO {
     pub fn new(connection_id: String, closed_at: u64) -> Self {
-        RemoteCloseDTO { connection_id, closed_at }
+        RemoteCloseDTO {
+            connection_id,
+            closed_at,
+        }
     }
 }
 
 impl RemoteConnectDTO {
-    pub fn new(connection_id: String, client_id: String, public_key: String, connected_at: u64, client_ip: String, client_port: String) -> Self {
-        RemoteConnectDTO { connection_id, client_id, public_key, connected_at, client_ip, client_port }
+    pub fn new(
+        connection_id: String,
+        client_id: String,
+        public_key: String,
+        connected_at: u64,
+        client_ip: String,
+        client_port: String,
+    ) -> Self {
+        RemoteConnectDTO {
+            connection_id,
+            client_id,
+            public_key,
+            connected_at,
+            client_ip,
+            client_port,
+        }
     }
 }
 
@@ -90,20 +105,27 @@ async fn send(v: Value, event_type: String) {
             BasicPublishOptions::default(),
             msg.to_string().as_ref(),
             BasicProperties::default(),
-        ).await.expect("Failed to publish message");
+        )
+        .await
+        .expect("Failed to publish message");
 
-    channel_a.close(ReplyCode::default(), "good").await.expect("Failed to close Channel");
+    channel_a
+        .close(ReplyCode::default(), "good")
+        .await
+        .expect("Failed to close Channel");
 }
 
 async fn get_connection(addr: &str) -> Connection {
     println!("Connecting to: {}", addr);
 
-    return Connection::connect(
-        addr,
-        ConnectionProperties::default(),
-    ).await.expect(&format!("fail to get connection {}", addr));
+    return Connection::connect(addr, ConnectionProperties::default())
+        .await
+        .expect(&format!("fail to get connection {}", addr));
 }
 
 async fn get_channel(connection: Connection) -> Channel {
-    return connection.create_channel().await.expect("fail to get channel");
+    return connection
+        .create_channel()
+        .await
+        .expect("fail to get channel");
 }
