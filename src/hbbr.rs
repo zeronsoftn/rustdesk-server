@@ -4,6 +4,7 @@ mod relay_server;
 use flexi_logger::*;
 use hbb_common::{config::RELAY_PORT, ResultType};
 use relay_server::*;
+mod rabbit;
 mod version;
 
 fn main() -> ResultType<()> {

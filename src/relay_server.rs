@@ -1,3 +1,5 @@
+use crate::rabbit;
+use crate::rabbit::{RemoteCloseDTO, RemoteConnectDTO};
 use async_speed_limit::Limiter;
 use async_trait::async_trait;
 use hbb_common::{
@@ -20,6 +22,7 @@ use hbb_common::{
     ResultType,
 };
 use sodiumoxide::crypto::sign;
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::{
     collections::{HashMap, HashSet},
     io::prelude::*,
@@ -32,6 +35,7 @@ type Usage = (usize, usize, usize, usize);
 
 lazy_static::lazy_static! {
     static ref PEERS: Mutex<HashMap<String, Box<dyn StreamTrait>>> = Default::default();
+    static ref IDS: Mutex<HashMap<String, Box<String>>> = Default::default();
     static ref USAGE: RwLock<HashMap<String, Usage>> = Default::default();
     static ref BLACKLIST: RwLock<HashSet<String>> = Default::default();
     static ref BLOCKLIST: RwLock<HashSet<String>> = Default::default();
@@ -424,16 +428,44 @@ async fn make_pair(
 
 async fn make_pair_(stream: impl StreamTrait, addr: SocketAddr, key: &str, limiter: Limiter) {
     let mut stream = stream;
-    if let Ok(Some(Ok(bytes))) = timeout(30_000, stream.recv()).await {
+
+    if let Ok(Some(Ok(bytes))) = timeout(15_000, stream.recv()).await {
         if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
             if let Some(rendezvous_message::Union::RequestRelay(rf)) = msg_in.union {
-                if !key.is_empty() && rf.licence_key != key {
+                if key != rf.licence_key || rf.licence_key.is_empty() {
                     return;
                 }
                 if !rf.uuid.is_empty() {
                     let mut peer = PEERS.lock().await.remove(&rf.uuid);
+                    let mut client_id = rf.id.clone();
+                    if client_id.is_empty() {
+                        client_id = IDS
+                            .lock()
+                            .await
+                            .remove(&rf.uuid)
+                            .unwrap_or(Box::new(client_id))
+                            .to_string();
+                    }
                     if let Some(peer) = peer.as_mut() {
-                        log::info!("Relayrequest {} from {} got paired", rf.uuid, addr);
+                        log::info!(
+                            "Relayrequest {} from {} got paired (client_id={})",
+                            rf.uuid,
+                            addr,
+                            client_id.clone()
+                        );
+                        rabbit::send_connect(RemoteConnectDTO::new(
+                            rf.uuid.clone(),
+                            client_id.clone(),
+                            rf.licence_key.clone(),
+                            SystemTime::now()
+                                .duration_since(UNIX_EPOCH)
+                                .expect("error")
+                                .as_millis() as u64,
+                            addr.ip().to_string().clone(),
+                            addr.port().to_string().clone(),
+                        ))
+                        .await;
+
                         let id = format!("{}:{}", addr.ip(), addr.port());
                         USAGE.write().await.insert(id.clone(), Default::default());
                         if !stream.is_ws() && !peer.is_ws() {
@@ -441,18 +473,37 @@ async fn make_pair_(stream: impl StreamTrait, addr: SocketAddr, key: &str, limit
                             stream.set_raw();
                             log::info!("Both are raw");
                         }
+
                         if let Err(err) = relay(addr, &mut stream, peer, limiter, id.clone()).await
                         {
                             log::info!("Relay of {} closed: {}", addr, err);
                         } else {
-                            log::info!("Relay of {} closed", addr);
+                            rabbit::send_close(RemoteCloseDTO::new(
+                                rf.uuid.clone(),
+                                SystemTime::now()
+                                    .duration_since(UNIX_EPOCH)
+                                    .expect("error")
+                                    .as_millis() as u64,
+                            ))
+                            .await;
+                            log::info!(
+                                "Relay of {} closed {} {} {}",
+                                addr,
+                                rf.id,
+                                client_id,
+                                rf.uuid
+                            );
                         }
                         USAGE.write().await.remove(&id);
                     } else {
                         log::info!("New relay request {} from {}", rf.uuid, addr);
                         PEERS.lock().await.insert(rf.uuid.clone(), Box::new(stream));
+                        IDS.lock()
+                            .await
+                            .insert(rf.uuid.clone(), Box::new(rf.id.clone()));
                         sleep(30.).await;
                         PEERS.lock().await.remove(&rf.uuid);
+                        IDS.lock().await.remove(&rf.uuid);
                     }
                 }
             }
@@ -573,7 +624,7 @@ fn get_server_sk(key: &str) -> String {
         }
     }
 
-    if key == "-" || key == "_" {
+    if key.is_empty() || key == "-" || key == "_" {
         let (pk, _) = crate::common::gen_sk(300);
         key = pk;
     }
